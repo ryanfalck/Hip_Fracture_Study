@@ -1,0 +1,623 @@
+---
+title: "Hip Fracture Study"
+author: "RSF"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# 1) Data Management
+
+Packages
+```{r}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(readxl, plyr, lme4, robustlmm, car, broom, lsmeans, ggplot2, psych,tableone, naniar, dplyr, BiocManager, effects,
+               expss, HLMdiag, tableone,mice,extrafont,gtsummary,ggthemes,patchwork,modelsummary, lmerTest, ggeffects)
+```
+
+Load Data
+```{r}
+HF <- read_excel("~/Desktop/Manuscripts/Ongoing Projects/Hip Fracture Study/HF_Data_Compiled_20240508.xlsx")
+```
+
+Setting Up Data Frame
+```{r}
+spaceless <- function(x) {colnames(x) <- gsub(" ", "_", colnames(x));x}
+data1<-spaceless(HF)
+
+data2<- data1 %>%
+  mutate(
+    ID = record_id,
+    Age = age_baseline,
+    Sex = sex_baseline,
+    Education = education_baseline,
+    BMI = bmi_baseline,
+    WHR = waist_hip_ratio_baseline,
+    seated_hr = (seated_hr_1_baseline + seated_hr_2_baseline)/2,
+    systolic_BP = (systolic_1_baseline + systolic_2_baseline)/2,
+    diastolic_BP = (diastolic_1_baseline + diastolic_2_baseline)/2,
+    STOP_BANG = stopbang_score_baseline,
+    FCI = fci_total_baseline,
+    FES = fes_total_baseline,
+    Walking_aid = sppb_4m_aids_baseline,
+    PPA_1 = ppa_score_baseline,
+    PPA_2 = ppa_score_midpoint,
+    PPA_3 = ppa_score_final,
+    PPAEdge_1 = ppa_edge_score_baseline,
+    PPAEdge_2 = ppa_edge_score_midpoint,
+    PPAEdge_3 = ppa_edge_score_final,
+    PPAQuad_1 = ppa_quads_mean_baseline,
+    PPAQuad_2 = ppa_quads_mean_midpoint,
+    PPAQuad_3 = ppa_quads_mean_final,
+    PPAProp_1 = ppa_prop_mean_baseline,
+    PPAProp_2 = ppa_prop_mean_midpoint,
+    PPAProp_3 = ppa_prop_mean_final,
+    PPART_1 = ppa_rt_mean_baseline,
+    PPART_2 = ppa_rt_mean_midpoint,
+    PPART_3 = ppa_rt_mean_final,
+    PPAEOFloor_1 = ppa_eofloor_score_baseline,
+    PPAEOFloor_2 = ppa_eofloor_score_midpoint,
+    PPAEOFloor_3 = ppa_eofloor_score_final, 
+    ClinicalFrailty_1 = clinical_frailty_baseline,
+    ClinicalFrailty_2 = clinical_frailty_midpoint,
+    ClinicalFrailty_3 = clinical_frailty_final,
+    FrailtyScore_1 = frailty_score_baseline,
+    FrailtyScore_2 = frailty_score_midpoint,
+    FrailtyScore_3 = frailty_score_final,
+    FrailtyPhenotype_1 = frailty_phenotype_baseline,
+    FrailtyPhenotype_2 = frailty_phenotype_midpoint,
+    FrailtyPhenotype_3 = frailty_phenotype_final,
+    SPPBrolling_1 = sppb_total_rolling_baseline,
+    SPPBrolling_2 = sppb_total_rolling_midpoint,
+    SPPBrolling_3 = sppb_total_rolling_final,
+    SPPBstandstill_1 = sppb_total_standstill_baseline,
+    SPPBstandstill_2 = sppb_total_standstill_midpoint,
+    SPPBstandstill_3 = sppb_total_standstill_final,
+    GripMax_1 = grip_max_baseline,
+    GripMax_2 = grip_max_midpoint,
+    GripMax_3 = grip_max_final,
+    TUG_1 = tug_time_baseline,
+    TUG_2 = tug_time_midpoint,
+    TUG_3 = tug_time_final,
+    GaitSpeedroll_1 = 4/sppb_walk_time_roll_start_baseline,
+    GaitSpeedroll_2 = 4/sppb_walk_time_roll_start_midpoint,
+    GaitSpeedroll_3 = 4/sppb_walk_time_roll_start_final,
+    GaitSpeedstand_1 = 4/sppb_walk_time_standstill_baseline,
+    GaitSpeedstand_2 = 4/sppb_walk_time_standstill_midpoint,
+    GaitSpeedstand_3 = 4/sppb_walk_time_standstill_final,
+    MMSE_1 = mmse_score_baseline,
+    MMSE_2 = mmse_score_midpoint,
+    MMSE_3 = mmse_score_final,
+    MoCA_1 = moca_score_baseline,
+    MoCA_2 = moca_score_midpoint,
+    MoCA_3 = moca_score_final,
+    DSST_1 = dsst_score_baseline,
+    DSST_2 = dsst_score_midpoint,
+    DSST_3 = dsst_score_final,
+    RVLTImmediate_1 = ravlt_immediate_total_baseline,
+    RVLTImmediate_2 = ravlt_immediate_total_midpoint,
+    RVLTImmediate_3 = ravlt_immediate_total_final,
+    RVLTDelayed_1 = ravlt_delay_total_baseline,
+    RVLTDelayed_2 = ravlt_delay_total_midpoint,
+    RVLTDelayed_3 = ravlt_delay_total_final,
+    IADL_1 = iadl_score_baseline,
+    IADL_2 = iadl_score_midpoint,
+    IADL_3 = iadl_score_final,
+    Barthel_1 = barthel_total_baseline,
+    Barthel_2 = barthel_total_midpoint,
+    Barthel_3 = barthel_total_final,
+    PSQI_1 = psqi_global_score_baseline,
+    PSQI_2 = psqi_global_score_midpoint,
+    PSQI_3 = psqi_global_score_final,
+    PASE_1 = pase_survey_score_baseline,
+    PASE_2 = pase_survey_score_midpoint,
+    PASE_3 = pase_survey_score_final,
+    CESD_1 = cesd_score_baseline,
+    CESD_2 = cesd_score_midpoint,
+    CESD_3 = cesd_score_final,
+    ABCscore_1 = abc_score_baseline,
+    ABCscore_2 = abc_score_midpoint,
+    ABCscore_3 = abc_score_final
+    )
+
+data3<-data2[c(390:480)]
+
+colnames(data3) <- (gsub("_1","baseline",colnames(data3)))
+colnames(data3) <- (gsub("_2","_1",colnames(data3)))
+colnames(data3) <- (gsub("_3","_2",colnames(data3)))
+
+data4<-data3[c(1:14,17,20,23,26,29,32,35,38,41,44,47,50,53,56,59,62,65,68,71,74,77,80,83,86,89,15:16,18:19,21:22,24:25,27:28,30:31,
+               33:34,36:37,39:40,42:43,45:46,48:49,51:52,54:55,57:58,60:61,63:64,66:67,69:70,72:73,75:76,78:79,81:82,84:85,87:88,90:91)]
+
+data5<-subset(data4, ID!="XDisregardHF_021" & ID!="HF_032")
+
+EX <- rep("EX", 30)
+UC <- rep("UC", 30)
+Group <- c(EX, UC)
+merged <- cbind(data5, Group)
+```
+Change sex variable to character
+```{r}
+merged$Sex[merged$Sex==1]<-"Males"
+merged$Sex[merged$Sex==0]<-"Females"
+```
+
+Change education variable to character
+```{r}
+merged$Education[merged$Education==1]<- "High School or Less"
+merged$Education[merged$Education==2]<- "High School or Less"
+merged$Education[merged$Education==3]<- "High School or Less"
+merged$Education[merged$Education==4]<- "Trade School or Some College"
+merged$Education[merged$Education==5]<- "Trade School or Some College"
+merged$Education[merged$Education==6]<- "University Degree or Higher"
+```
+
+Change walking aid variable to character
+```{r}
+merged$Walking_aid[merged$Walking_aid==0]<- "None"
+merged$Walking_aid[merged$Walking_aid==1]<- "Regular Cane"
+merged$Walking_aid[merged$Walking_aid==2]<- "Quad Cane"
+merged$Walking_aid[merged$Walking_aid==3]<- "Single Walking Pole"
+merged$Walking_aid[merged$Walking_aid==4]<- "2 Walking Poles"
+merged$Walking_aid[merged$Walking_aid==5]<- "Wheeled Walker"
+merged$Walking_aid[merged$Walking_aid==6]<- "Basic Walker"
+```
+
+PSQI imputation for missing data at baseline w/ median score
+```{r}
+merged$PSQIbaseline.1<-merged$PSQIbaseline
+merged$PSQIbaseline.1[is.na(merged$PSQIbaseline.1)]<-median(merged$PSQIbaseline.1, na.rm = TRUE)
+```
+
+PSQI imputation for missing data at baseline w/ median score by treatment group
+```{r}
+merged$PSQIbaseline.2<-merged$PSQIbaseline
+merged$PSQIbaseline.2[is.na(merged$PSQIbaseline.2 & merged$Group=="EX")]<-median(merged$PSQIbaseline.2|merged$Group=="EX", na.rm = TRUE)
+merged$PSQIbaseline.2[is.na(merged$PSQIbaseline.2 & merged$Group=="UC")]<-median(merged$PSQIbaseline.2|merged$Group=="UC", na.rm = TRUE)
+```
+
+Merge w/ NIH data
+```{r}
+NIH <- read_excel("~/Desktop/Manuscripts/Ongoing Projects/Hip Fracture Study/HF NIH collated data 2024-05-30 For Ryan.xlsx")
+
+NIH_2<- NIH %>%
+  mutate(
+    ID = record_id,
+    Flanker_1 = flanker_corrected_Tscore_baseline,
+    Flanker_1 = na_if(Flanker_1, "NA"),
+    Flanker_1 = na_if(Flanker_1, "999"),
+    Flanker_1 = as.numeric(Flanker_1),
+    Flanker_2 = flanker_corrected_Tscore_midpoint,
+    Flanker_2 = na_if(Flanker_2, "NA"),
+    Flanker_2 = na_if(Flanker_2, "999"),
+    Flanker_2 = as.numeric(Flanker_2),
+    Flanker_3 = flanker_corrected_Tscore_final,
+    Flanker_3 = na_if(Flanker_3, "NA"),
+    Flanker_3 = na_if(Flanker_3, "999"),
+    Flanker_3 = as.numeric(Flanker_3),
+    DCCS_1 = dccs_corrected_Tscore_baseline,
+    DCCS_1 = na_if(DCCS_1, "NA"),
+    DCCS_1 = na_if(DCCS_1, "999"),
+    DCCS_1 = as.numeric(DCCS_1),
+    DCCS_2 = dccs_fully_corrected_Tscore_midpoint,
+    DCCS_2 = na_if(DCCS_2, "NA"),
+    DCCS_2 = na_if(DCCS_2, "999"),
+    DCCS_2 = as.numeric(DCCS_2),
+    DCCS_3 = dccs_fully_corrected_Tscore_final,
+    DCCS_3 = na_if(DCCS_3, "NA"),
+    DCCS_3 = na_if(DCCS_3, "999"),
+    DCCS_3 = as.numeric(DCCS_3)
+  )
+
+NIH_3<-NIH_2[c(8:14)]
+
+colnames(NIH_3) <- (gsub("_1","baseline",colnames(NIH_3)))
+colnames(NIH_3) <- (gsub("_2","_1",colnames(NIH_3)))
+colnames(NIH_3) <- (gsub("_3","_2",colnames(NIH_3)))
+
+NIH_4<-subset(NIH_3, ID!="HF_032")
+
+merged_2 <- merge(merged, NIH_4, by="ID")
+```
+
+Re-order data
+```{r}
+final.wide<-merged_2[c(1,92,2:39,93:94,95,98,40:91,96:97,99:100)]
+```
+
+Final linear mixed model data frame
+```{r}
+final <- reshape(as.data.frame(final.wide),idvar="ID",varying=45:100,direction="long",sep="_") #reshape data into long format (3 timepoints)
+```
+
+
+# 2) Baseline Characteristics
+
+```{r}
+vars<-dput(names(final.wide[c(3:44)]))
+
+Table1_continuous<-CreateTableOne(vars=vars, strata = "Group", data=final.wide)
+print(Table1_continuous,contDigits=2,missing=TRUE,quote=TRUE)
+```
+
+# 3) Primary Outcome Results
+
+## 3.1) Linear Mixed Model Model Set-up
+
+Function for linear mixed model results
+```{r}
+lmm.ex.mdl<- function(y,cov1,baselinemean, baselinese){
+  model <- lmer(as.formula(paste0(y, "~factor(Group)*factor(time) +", cov1, " + Walking_aid + Sex + Education + PSQIbaseline.2 + (1|ID)")), final)
+  modelsummary <- summary(model)
+  means.1 <- lsmeans(model, ~Group|time)
+  contrasts <- contrast(means.1, "trt.vs.ctrl", adj="none")
+  conf.95<-confint(contrasts, parm, level = 0.95)
+  within.means.frame<-as.data.frame(means.1)
+  within.means<-as.numeric(as.character(unlist(within.means.frame[3])))
+  within.means.se<-as.numeric(as.character(unlist(within.means.frame[4])))
+  baselinemean.1<-as.numeric(paste0(baselinemean))
+  baselinese.1<-as.numeric(paste0(baselinese))
+  groups.frame<-cbind(c(1,0,1,0))
+  testframe<-as.data.frame(cbind(groups.frame,baselinemean.1,baselinese.1,within.means,within.means.se))
+  testframe$within.diff.means<- testframe$baselinemean - testframe$within.means
+  testframe$within.diff.se<- sqrt(testframe$baselinese^2 + testframe$within.means.se^2)
+  testframe$within.diff_LL<-testframe$baselinemean - testframe$within.means - 1.96*testframe$within.diff.se
+  testframe$within.diff_UL<-testframe$baselinemean - testframe$within.means + 1.96*testframe$within.diff.se
+  
+  return(list(summary=modelsummary, lsmeans=means.1, group_contrasts=contrasts, contrasts_ci.95=conf.95, within_group=testframe))
+}
+```
+
+Within group changes
+```{r}
+PPA.baseline.mean <- cbind(c(2.59,2.69,2.59,2.69))
+PPA.baseline.se <-cbind(c(0.21,0.25,0.21,0.25))
+```
+
+## 3.2) Primary Outcome Model Results
+```{r message=FALSE}
+lmm.ex.mdl("PPA", "PPAbaseline", PPA.baseline.mean, PPA.baseline.se)
+```
+
+
+# 4) Secondary Physical Outcome Results 
+
+## 4.1) Linear Mixed Model Model Set-up
+
+Function for linear mixed model results
+```{r}
+lmm.ex2.mdl<- function(y,cov1,baselinemean, baselinese){
+  model <- lmer(as.formula(paste0(y, "~factor(Group)*factor(time) +", cov1, " + Walking_aid + Sex + Education + PSQIbaseline.2 + (1|ID)")), final)
+  modelsummary <- summary(model)
+  means.1 <- lsmeans(model, ~Group|time)
+  contrasts <- contrast(means.1, "trt.vs.ctrl", adj="none")
+  conf.95<-confint(contrasts, parm, level = 0.95)
+  within.means.frame<-as.data.frame(means.1)
+  within.means<-as.numeric(as.character(unlist(within.means.frame[3])))
+  within.means.se<-as.numeric(as.character(unlist(within.means.frame[4])))
+  baselinemean.1<-as.numeric(paste0(baselinemean))
+  baselinese.1<-as.numeric(paste0(baselinese))
+  groups.frame<-cbind(c(1,0,1,0))
+  testframe<-as.data.frame(cbind(groups.frame,baselinemean.1,baselinese.1,within.means,within.means.se))
+  testframe$within.diff.means<- testframe$baselinemean - testframe$within.means
+  testframe$within.diff.se<- sqrt(testframe$baselinese^2 + testframe$within.means.se^2)
+  testframe$within.diff_LL<-testframe$baselinemean - testframe$within.means - 1.96*testframe$within.diff.se
+  testframe$within.diff_UL<-testframe$baselinemean - testframe$within.means + 1.96*testframe$within.diff.se
+  
+  return(list(summary=modelsummary, lsmeans=means.1, group_contrasts=contrasts, contrasts_ci.95=conf.95, within_group=testframe))
+}
+```
+
+Within group changes
+```{r}
+SPPB.rolling.baseline.mean <- cbind(c(7.40,6.63,7.40,6.63))
+SPPB.rolling.baseline.se <-cbind(c(0.43,0.38,0.43,0.38))
+
+SPPB.standstill.baseline.mean <- cbind(c(7.27,6.57,7.27,6.57))
+SPPB.standstill.baseline.se <-cbind(c(0.43,0.38,0.43,0.38))
+
+TUG.baseline.mean <- cbind(c(17.56,20.03,17.56,20.03))
+TUG.baseline.se <-cbind(c(1.44,1.38,1.44,1.38))
+
+Grip.baseline.mean <- cbind(c(23.03,21.96,23.03,21.96))
+Grip.baseline.se <-cbind(c(1.24,1.53,1.24,1.53))
+
+GaitSpeed.rolling.baseline.mean <- cbind(c(0.83,0.76,0.83,0.76))
+GaitSpeed.rolling.baseline.se <-cbind(c(0.05,0.04))
+
+GaitSpeed.standstill.baseline.mean <- cbind(c(0.79,0.74,0.79,0.74))
+GaitSpeed.standstill.baseline.se <-cbind(c(0.05,0.03))
+
+PPA.Edge.baseline.mean <- cbind(c(18.37,16.57,18.37,16.57))
+PPA.Edge.baseline.se <-cbind(c(0.36,0.82,0.36,0.82))
+
+PPA.Quad.baseline.mean <- cbind(c(25.2,22.38,25.2,22.38))
+PPA.Quad.baseline.se <-cbind(c(1.88,1.78,1.88,1.78))
+
+PPA.Prop.baseline.mean <- cbind(c(2.42,2.50,2.42,2.50))
+PPA.Prop.baseline.se <-cbind(c(0.15,0.23,0.15,0.23))
+
+PPA.RT.baseline.mean <- cbind(c(258.65,269.24,258.65,269.24))
+PPA.RT.baseline.se <-cbind(c(8.14,9.38,8.14,9.38))
+
+PPA.EOFloor.baseline.mean <- cbind(c(80.9,104.33,80.9,104.33))
+PPA.EOFloor.baseline.se <-cbind(c(12.51,15.46,12.51,15.46))
+```
+
+## 4.2) Secondary Physical Outcome Models Results
+
+SPPB Rolling Start
+```{r message=FALSE}
+lmm.ex2.mdl("SPPBrolling", "SPPBrollingbaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+SPPB Standing Start
+```{r message=FALSE}
+lmm.ex2.mdl("SPPBstandstill", "SPPBstandstillbaseline", SPPB.standstill.baseline.mean, SPPB.standstill.baseline.se)
+```
+
+TUG
+```{r message=FALSE}
+lmm.ex2.mdl("TUG", "TUGbaseline", TUG.baseline.mean, TUG.baseline.se)
+```
+
+Grip Strength
+```{r message=FALSE}
+lmm.ex2.mdl("GripMax", "GripMaxbaseline", Grip.baseline.mean, Grip.baseline.se)
+```
+
+Gait Speed Rolling Start
+```{r message=FALSE}
+lmm.ex2.mdl("GaitSpeedroll", "GaitSpeedrollbaseline", GaitSpeed.rolling.baseline.mean, GaitSpeed.rolling.baseline.se)
+```
+
+Gait Speed Standing Start
+```{r message=FALSE}
+lmm.ex2.mdl("GaitSpeedstand", "GaitSpeedstandbaseline", GaitSpeed.standstill.baseline.mean, GaitSpeed.standstill.baseline.se)
+```
+
+PPA Edge
+```{r message=FALSE}
+lmm.ex2.mdl("PPAEdge", "PPAEdgebaseline", PPA.Edge.baseline.mean, PPA.Edge.baseline.se)
+```
+
+PPA Quad
+```{r message=FALSE}
+lmm.ex2.mdl("PPAQuad", "PPAQuadbaseline", PPA.Quad.baseline.mean, PPA.Quad.baseline.se)
+```
+
+PPA Prop
+```{r message=FALSE}
+lmm.ex2.mdl("PPAProp", "PPAPropbaseline", PPA.Prop.baseline.mean, PPA.Prop.baseline.se)
+```
+
+PPA RT
+```{r message=FALSE}
+lmm.ex2.mdl("PPART", "PPARTbaseline", PPA.RT.baseline.mean, PPA.RT.baseline.se)
+```
+
+PPA EO Floor
+```{r message=FALSE}
+lmm.ex2.mdl("PPAEOFloor", "PPAEOFloorbaseline", PPA.EOFloor.baseline.mean, PPA.EOFloor.baseline.se)
+```
+
+# 5) Secondary Cognitive Outcome Results 
+
+## 5.1) Linear Mixed Model Model Set-up
+
+Function for linear mixed model results
+```{r}
+lmm.ex3.mdl<- function(y,cov1,baselinemean, baselinese){
+  model <- lmer(as.formula(paste0(y, "~factor(Group)*factor(time) +", cov1, " + Walking_aid + Sex + Education + PSQIbaseline.2 + (1|ID)")), final)
+  modelsummary <- summary(model)
+  means.1 <- lsmeans(model, ~Group|time)
+  contrasts <- contrast(means.1, "trt.vs.ctrl", adj="none")
+  conf.95<-confint(contrasts, parm, level = 0.95)
+  within.means.frame<-as.data.frame(means.1)
+  within.means<-as.numeric(as.character(unlist(within.means.frame[3])))
+  within.means.se<-as.numeric(as.character(unlist(within.means.frame[4])))
+  baselinemean.1<-as.numeric(paste0(baselinemean))
+  baselinese.1<-as.numeric(paste0(baselinese))
+  groups.frame<-cbind(c(1,0,1,0))
+  testframe<-as.data.frame(cbind(groups.frame,baselinemean.1,baselinese.1,within.means,within.means.se))
+  testframe$within.diff.means<- testframe$baselinemean - testframe$within.means
+  testframe$within.diff.se<- sqrt(testframe$baselinese^2 + testframe$within.means.se^2)
+  testframe$within.diff_LL<-testframe$baselinemean - testframe$within.means - 1.96*testframe$within.diff.se
+  testframe$within.diff_UL<-testframe$baselinemean - testframe$within.means + 1.96*testframe$within.diff.se
+  
+  return(list(summary=modelsummary, lsmeans=means.1, group_contrasts=contrasts, contrasts_ci.95=conf.95, within_group=testframe))
+}
+```
+
+Within group changes
+```{r}
+DSST.baseline.mean <- cbind(c(34.20,29.28,34.20,29.28))
+DSST.baseline.se <-cbind(c(1.98,1.87,1.98,1.87))
+
+MoCA.baseline.mean <- cbind(c(22.37,20.13,22.37,20.13))
+MoCA.baseline.se <-cbind(c(0.49,0.54,0.49,0.54))
+
+MMSE.baseline.mean <- cbind(c(27.67,26.93,27.67,26.93))
+MMSE.baseline.se <-cbind(c(0.36,0.40,0.36,0.40))
+
+RVLTImmediate.baseline.mean <- cbind(c(5.13,3.90,5.13,3.90))
+RVLTImmediate.baseline.se <-cbind(c(0.34,0.31,0.34,0.31))
+
+RVLTDelayed.baseline.mean <- cbind(c(2.23,1.60,2.23,1.60))
+RVLTDelayed.baseline.se <-cbind(c(0.27,0.22))
+
+CESD.baseline.mean <- cbind(c(7.85,10.62,7.85,10.62))
+CESD.baseline.se <-cbind(c(1.44,2.13,1.44,2.13))
+
+DCCS.baseline.mean <- cbind(c(48.32,51.79,48.32,51.79))
+DCCS.baseline.se <-cbind(c(1.43,2.10,1.43,2.10))
+
+Flanker.baseline.mean <- cbind(c(38.96,39.47,38.96,39.47))
+Flanker.baseline.se <-cbind(c(1.46,1.78,1.46,1.78))
+```
+
+## 5.2) Secondary Cognitive Outcome Models Results
+
+DSST
+```{r message=FALSE}
+lmm.ex3.mdl("DSST", "DSSTbaseline", DSST.baseline.mean, DSST.baseline.se)
+```
+
+MoCA
+```{r message=FALSE}
+lmm.ex3.mdl("MoCA", "MoCAbaseline", MoCA.baseline.mean, MoCA.baseline.se)
+```
+
+MMSE
+```{r message=FALSE}
+lmm.ex3.mdl("MMSE", "MMSEbaseline", MMSE.baseline.mean, MMSE.baseline.se)
+```
+
+RVLT Immediate
+```{r message=FALSE}
+lmm.ex3.mdl("RVLTImmediate", "RVLTImmediatebaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+RVLT Delayed
+```{r message=FALSE}
+lmm.ex3.mdl("RVLTDelayed", "RVLTDelayedbaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+CESD
+```{r message=FALSE}
+lmm.ex3.mdl("CESD", "CESDbaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+DCCS
+```{r message=FALSE}
+lmm.ex3.mdl("DCCS", "DCCSbaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+Flanker
+```{r message=FALSE}
+lmm.ex3.mdl("Flanker", "Flankerbaseline", SPPB.rolling.baseline.mean, SPPB.rolling.baseline.se)
+```
+
+
+# 6) Secondary Frailty Outcome Results 
+
+## 6.1) Linear Mixed Model Model Set-up for Clinical Frailty Score
+
+Function for linear mixed model results
+```{r}
+lmm.ex4.mdl<- function(y,cov1,baselinemean, baselinese){
+  model <- lmer(as.formula(paste0(y, "~factor(Group)*factor(time) +", cov1, " + Walking_aid + Sex + Education + PSQIbaseline.2 + (1|ID)")), final)
+  modelsummary <- summary(model)
+  means.1 <- lsmeans(model, ~Group|time)
+  contrasts <- contrast(means.1, "trt.vs.ctrl", adj="none")
+  conf.95<-confint(contrasts, parm, level = 0.95)
+  within.means.frame<-as.data.frame(means.1)
+  within.means<-as.numeric(as.character(unlist(within.means.frame[3])))
+  within.means.se<-as.numeric(as.character(unlist(within.means.frame[4])))
+  baselinemean.1<-as.numeric(paste0(baselinemean))
+  baselinese.1<-as.numeric(paste0(baselinese))
+  groups.frame<-cbind(c(1,0,1,0))
+  testframe<-as.data.frame(cbind(groups.frame,baselinemean.1,baselinese.1,within.means,within.means.se))
+  testframe$within.diff.means<- testframe$baselinemean - testframe$within.means
+  testframe$within.diff.se<- sqrt(testframe$baselinese^2 + testframe$within.means.se^2)
+  testframe$within.diff_LL<-testframe$baselinemean - testframe$within.means - 1.96*testframe$within.diff.se
+  testframe$within.diff_UL<-testframe$baselinemean - testframe$within.means + 1.96*testframe$within.diff.se
+  
+  return(list(summary=modelsummary, lsmeans=means.1, group_contrasts=contrasts, contrasts_ci.95=conf.95, within_group=testframe))
+}
+```
+
+Within group changes
+```{r}
+Frailtyscore.baseline.mean <- cbind(c(4,4.13,4,4.13))
+Frailtyscore.baseline.se <-cbind(c(0.15,0.13,0.15,0.13))
+```
+
+## 6.2) Clinical Frailty Outcome Model
+
+Clinical Frailty Score
+```{r message=FALSE}
+lmm.ex4.mdl("ClinicalFrailty", "ClinicalFrailtybaseline", Frailtyscore.baseline.mean, Frailtyscore.baseline.se)
+```
+
+
+## 6.3) Chi-Square distributions for Frailty Phenotype
+
+Baseline
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyPhenotypebaseline)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyPhenotypebaseline)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
+
+Midpoint
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyPhenotype_1)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyPhenotype_1)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
+
+Final
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyPhenotype_2)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyPhenotype_2)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
+
+
+## 6.4) Chi-Square distributions for Frailty Score
+
+Baseline
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyScorebaseline)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyScorebaseline)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
+
+Midpoint
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyScore_1)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyScore_1)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
+
+Final
+```{r}
+#Proportions
+table_data <- table(final.wide$Group, final.wide$FrailtyScore_2)
+
+# Perform the chi-square test of independence
+chi_square_test <- chisq.test(final.wide$Group, final.wide$FrailtyScore_2)
+
+# Print the test result
+print(c(table_data,chi_square_test))
+```
